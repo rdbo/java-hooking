@@ -3,7 +3,7 @@ package main;
 public class Main {
     public static int hookMe(int myNumber) {
         System.out.println("My number is: " + myNumber);
-        return myNumber * 20;
+        return myNumber * myNumber;
     }
    
     public static void doStuff() {

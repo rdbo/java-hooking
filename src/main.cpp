@@ -5,7 +5,7 @@
 address orig_i2c_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
 
-void hkCallStub(JavaVM *jvm, intptr_t *result, BasicType result_type, Method *method, address entry_point, intptr_t *parameters, int size_of_parameters)
+void hkCallStub(JavaVM *jvm, address *link, intptr_t *result, BasicType *result_type, Method *method, address entry_point, intptr_t *parameters, int *size_of_parameters, JavaThread *__the_thread__)
 {
 	JNIEnv *jni;
 	
@@ -17,14 +17,14 @@ void hkCallStub(JavaVM *jvm, intptr_t *result, BasicType result_type, Method *me
 	std::cout << "[*] JNIEnv: " << jni << std::endl;
 		
 	std::cout << "[*] Stub info: " << std::endl;
-	// std::cout << "      link: " << link << std::endl;
+	std::cout << "      link: " << link << std::endl;
 	std::cout << "      result: " << result << std::endl;
 	std::cout << "      result_type: " << result_type << std::endl;
 	std::cout << "      method: " << method << std::endl;
 	std::cout << "      entry_point: " << entry_point << std::endl;
 	std::cout << "      parameters: " << parameters << std::endl;
 	std::cout << "      size_of_parameters: " << size_of_parameters << std::endl;
-	// std::cout << "      __the_thread__: " << __the_thread__ << std::endl;
+	std::cout << "      __the_thread__: " << __the_thread__ << std::endl;
 
 	jmethodID mID = (jmethodID)&method;
 
@@ -55,37 +55,41 @@ int create_hook_stub(JavaVM *jvm)
 		"push r11\n"
 		"push rbp\n"
 		"push rsp\n"
-		"sub rsp, 40\n"
 
 		/// arg 0
 		"mov rdi, %p\n"
-		// "mov rdi, [rbp - 48]\n"
 
 		/// arg 1
-		"mov rsi, [rbp - 40]\n"
-
+		"mov rsi, [rbp - 48]\n"
 
 		/// arg 2
-		"mov edx, [rbp - 32]\n"
+		"mov rdx, [rbp - 40]\n"
 
 		/// arg 3
-		"mov rcx, [rbp - 24]\n"
+		"mov rcx, [rbp - 32]\n"
 
 		/// arg 4
-		"mov r8, [rbp - 16]\n"
+		"mov r8, [rbp - 24]\n"
 
 		/// arg 5
-		"mov r9, [rbp - 8]\n"
+		"mov r9, [rbp - 16]\n"
+
+		/// arg 8
+		"mov rax, [rbp + 24]\n"
+		"push rax\n"
+
+		/// arg 7
+		"mov rax, [rbp + 16]\n"
+		"push rax\n"
 
 		/// arg 6
-		"mov eax, [rbp + 16]\n"
-		"mov [rsp + 16], eax\n"
+		"mov rax, [rbp - 8]\n"
+		"push rax\n"
 
 		"mov rax, %p\n"
 		"call rax\n"
 
 		/// Clean up
-		"add rsp, 40\n"
 		"pop rsp\n"
 		"pop rbp\n"
 		"pop r11\n"
@@ -134,11 +138,16 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	std::cout << "[*] hookMe Method: " << hookMe << std::endl;
 	std::cout << "[*] _i2i_entry: " << hookMe->_i2i_entry << std::endl;
 	std::cout << "[*] _from_interpreted_entry (i2c_entry): " << hookMe->_from_interpreted_entry << std::endl;
+	std::cout << "[*] _flags: " << hookMe->_flags << std::endl;
 	if (!hookMe->_i2i_entry || !hookMe->_from_interpreted_entry) {
 		std::cout << "[!] Method is not interpreted!" << std::endl;
 		return -1;
 	}
 
+	hookMe->_flags &= 0b11111101; // remove '_force_inline'
+	hookMe->_flags |= 0b100; // add '_dont_inline'
+	std::cout << "[*] _flags (after disabling inline): " << hookMe->_flags << std::endl;
+	
 	orig_i2c_entry = hookMe->_from_interpreted_entry;
 
 	if (!create_hook_stub(jvm)) {
