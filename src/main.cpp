@@ -4,13 +4,13 @@
 
 address orig_i2c_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
+lm_address_t hkCompStub = LM_ADDRESS_BAD;
 
-//void hkCallStub(JavaVM *jvm, address *link, intptr_t *result, BasicType *result_type, Method *method, address entry_point, intptr_t *parameters, int *size_of_parameters, JavaThread *__the_thread__)
-void hkCallStub(JavaVM *jvm, Method *method, void *senderSP)
+void hkHookMe(JavaVM *jvm, Method *method, void *senderSP)
 {
 	JNIEnv *jni;
 	
-	std::cout << "[*] hkCallStub called!" << std::endl;
+	std::cout << "[*] hkHookMe called!" << std::endl;
 	std::cout << "[*] hkInterpStub: " << (void *)hkInterpStub << std::endl;
 	std::cout << "[*] JavaVM: " << jvm << std::endl;
 
@@ -37,15 +37,16 @@ void hkCallStub(JavaVM *jvm, Method *method, void *senderSP)
 	*number = new_number;
 }
 
-int create_hook_stub(JavaVM *jvm)
+lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
 {
 	char buf[1000];
 	lm_bytearr_t code;
 	lm_size_t codesize;
+	lm_address_t hookaddr;
 
-	hkInterpStub = LM_AllocMemory(0x1000, LM_PROT_XRW);
-	if (hkInterpStub == LM_ADDRESS_BAD)
-		return -1;
+	hookaddr = LM_AllocMemory(0x1000, LM_PROT_XRW);
+	if (hookaddr == LM_ADDRESS_BAD)
+		return hookaddr;
 
 	snprintf(buf, sizeof(buf),
 		/// Back up registers and alloc bytes on stack
@@ -115,14 +116,21 @@ int create_hook_stub(JavaVM *jvm)
 		"mov rax, %p\n"
 		"jmp rax",
 
-		jvm, hkCallStub, orig_i2c_entry
+		jvm, hookfn, orig_i2c_entry
 	);
 
 	codesize = LM_AssembleEx(buf, LM_BITS, hkInterpStub, &code);
-	if (!codesize)
-		return -1;
+	if (!codesize) {
+		LM_FreeMemory(hookaddr, 0x1000);
+		return LM_ADDRESS_BAD;
+	}
 
-	return LM_WriteMemory(hkInterpStub, code, codesize) == codesize;
+	if (LM_WriteMemory(hkInterpStub, code, codesize) != codesize) {
+		LM_FreeMemory(hookaddr, 0x1000);
+		return LM_ADDRESS_BAD;
+	}
+
+	return hookaddr;
 }
 
 // TODO: Make sure method is not inlined
@@ -147,6 +155,8 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	std::cout << "[*] hookMe Method: " << hookMe << std::endl;
 	std::cout << "[*] _i2i_entry: " << hookMe->_i2i_entry << std::endl;
 	std::cout << "[*] _from_interpreted_entry (i2c_entry): " << hookMe->_from_interpreted_entry << std::endl;
+	std::cout << "[*] _code: " << hookMe->_code << std::endl;
+	std::cout << "[*] _from_compiled_entry (c2i_entry): " << hookMe->_from_compiled_entry << std::endl;
 	std::cout << "[*] _flags: " << hookMe->_flags << std::endl;
 	if (!hookMe->_i2i_entry || !hookMe->_from_interpreted_entry) {
 		std::cout << "[!] Method is not interpreted!" << std::endl;
@@ -159,12 +169,26 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	
 	orig_i2c_entry = hookMe->_from_interpreted_entry;
 
-	if (!create_hook_stub(jvm)) {
+	if ((hkInterpStub = create_hook_stub(jvm, (void *)hkHookMe)) == LM_ADDRESS_BAD) {
 		std::cout << "[*] Failed to create hook stub" << std::endl;
 		return -1;
 	}
 	
 	hookMe->_from_interpreted_entry = (address)hkInterpStub;
+	hookMe->_code = (address)hkInterpStub;
+
+	jclass MyClass = jni->FindClass("main/MyClass");
+	if (!MyClass) {
+		std::cout << "[!] Failed to find MyClass" << std::endl;
+		return -1;
+	}
+	std::cout << "[*] MyClass: " << MyClass << std::endl;
+
+	jmethodID getUsernameID = jni->GetMethodID(MyClass, "getUsername", "()Ljava/lang/String;");
+	std::cout << "[*] getUsername ID: " << getUsernameID << std::endl;
+
+	Method *getUsername = *(Method **)getUsernameID;
+	std::cout << "[*] getUsername method: " << getUsername << std::endl;
 
 	return 0;
 }

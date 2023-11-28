@@ -1,6 +1,10 @@
 package main;
 
+import main.MyClass;
+
 public class Main {
+    public static MyClass myObject = new MyClass("User");
+    
     public static int hookMe(int myNumber) {
         System.out.println("My number is: " + myNumber);
         return myNumber * myNumber;
@@ -10,6 +14,7 @@ public class Main {
         while (true) {
             int ret = hookMe(10);
             System.out.println("hookMe return value: " + ret);
+            System.out.println("myObject getUsername: " + myObject.getUsername());
             
             try {
                 Thread.sleep(1000);
