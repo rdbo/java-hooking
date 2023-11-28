@@ -5,7 +5,8 @@
 address orig_i2c_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
 
-void hkCallStub(JavaVM *jvm, address *link, intptr_t *result, BasicType *result_type, Method *method, address entry_point, intptr_t *parameters, int *size_of_parameters, JavaThread *__the_thread__)
+//void hkCallStub(JavaVM *jvm, address *link, intptr_t *result, BasicType *result_type, Method *method, address entry_point, intptr_t *parameters, int *size_of_parameters, JavaThread *__the_thread__)
+void hkCallStub(JavaVM *jvm, Method *method, void *senderSP)
 {
 	JNIEnv *jni;
 	
@@ -17,19 +18,23 @@ void hkCallStub(JavaVM *jvm, address *link, intptr_t *result, BasicType *result_
 	std::cout << "[*] JNIEnv: " << jni << std::endl;
 		
 	std::cout << "[*] Stub info: " << std::endl;
-	std::cout << "      link: " << link << std::endl;
-	std::cout << "      result: " << result << std::endl;
-	std::cout << "      result_type: " << result_type << std::endl;
 	std::cout << "      method: " << method << std::endl;
-	std::cout << "      entry_point: " << entry_point << std::endl;
-	std::cout << "      parameters: " << parameters << std::endl;
-	std::cout << "      size_of_parameters: " << size_of_parameters << std::endl;
-	std::cout << "      __the_thread__: " << __the_thread__ << std::endl;
+	std::cout << "      senderSP: " << senderSP << std::endl;
 
 	jmethodID mID = (jmethodID)&method;
 
 	std::cout << "[*] Method (stub): " << std::endl;
 	std::cout << "      _from_interpreted_entry: " << method->_from_interpreted_entry << std::endl;
+
+	void **args = (void **)((uintptr_t)senderSP + 8 * 1 - 8);
+	std::cout << "      args: " << args << std::endl;
+	
+	jint *number = (jint *)(args);
+	std::cout << "      arg0 (number): " << number << std::endl;
+
+	jint new_number = 1337;
+	std::cout << "[*] Modifying number to: " << new_number << std::endl;
+	*number = new_number;
 }
 
 int create_hook_stub(JavaVM *jvm)
@@ -60,35 +65,38 @@ int create_hook_stub(JavaVM *jvm)
 		"mov rdi, %p\n"
 
 		/// arg 1
-		"mov rsi, [rbp - 48]\n"
+		// "mov rsi, [rbp - 48]\n"
+		// "mov rsi, [rbp - 24]\n"
+		"mov rsi, rbx\n"
 
 		/// arg 2
-		"mov rdx, [rbp - 40]\n"
+		// "mov rdx, [rbp - 40]\n"
+		"mov rdx, r13\n"
 
 		/// arg 3
-		"mov rcx, [rbp - 32]\n"
+		// "mov rcx, [rbp - 32]\n"
 
 		/// arg 4
-		"mov r8, [rbp - 24]\n"
+		// "mov r8, [rbp - 24]\n"
 
 		/// arg 5
-		"mov r9, [rbp - 16]\n"
+		// "mov r9, [rbp - 16]\n"
 
 		/// arg 8
-		"mov rax, [rbp + 24]\n"
-		"push rax\n"
+		// "mov rax, [rbp + 24]\n"
+		// "push rax\n"
 
 		/// arg 7
-		"mov rax, [rbp + 16]\n"
-		"push rax\n"
+		// "mov rax, [rbp + 16]\n"
+		// "push rax\n"
 
 		/// arg 6
-		"mov rax, [rbp - 8]\n"
-		"push rax\n"
+		// "mov rax, [rbp - 8]\n"
+		// "push rax\n"
 
 		"mov rax, %p\n"
 		"call rax\n"
-		"add rsp, 24\n"
+		// "add rsp, 24\n"
 
 		/// Clean up
 		"pop rsp\n"
