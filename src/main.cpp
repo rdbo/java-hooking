@@ -26,7 +26,7 @@ void hkCallStub(JavaVM *jvm, Method *method, void *senderSP)
 	std::cout << "[*] Method (stub): " << std::endl;
 	std::cout << "      _from_interpreted_entry: " << method->_from_interpreted_entry << std::endl;
 
-	void **args = (void **)((uintptr_t)senderSP + 8 * 1 - 8);
+	void **args = (void **)((uintptr_t)senderSP);
 	std::cout << "      args: " << args << std::endl;
 	
 	jint *number = (jint *)(args);
