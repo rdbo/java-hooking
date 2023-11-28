@@ -1,3 +1,5 @@
 *.class
 *.log
 *.so
+*.o
+build/
