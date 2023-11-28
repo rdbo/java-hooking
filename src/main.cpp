@@ -88,6 +88,7 @@ int create_hook_stub(JavaVM *jvm)
 
 		"mov rax, %p\n"
 		"call rax\n"
+		"add rsp, 24\n"
 
 		/// Clean up
 		"pop rsp\n"
