@@ -7,8 +7,15 @@ public class Main {
     
     public static int hookMe(int myNumber, String myMessage) {
         System.out.println("My number is: " + myNumber);
-        System.out.println("My message is: " + myMessage);
+        System.out.println("My message is: " + myMessage + " " + getPointer(myMessage));
         return myNumber * myNumber;
+    }
+
+    public native static long getAddress(Object obj);
+
+    public static String getPointer(Object obj) {
+        long addr = getAddress(obj);
+        return Long.toHexString(addr);
     }
    
     public static void doStuff() {
@@ -28,6 +35,8 @@ public class Main {
     
     public static void main(String[] args) {
         System.out.println("My Java Program");
+
+        System.loadLibrary("Main");
         
         if (args.length >= 1) {
             // Load library directly from Java process (good for testing with JNI_OnLoad)
