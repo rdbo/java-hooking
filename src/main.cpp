@@ -6,6 +6,17 @@ address orig_i2c_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
 lm_address_t hkCompStub = LM_ADDRESS_BAD;
 
+address get_method_arg(Method *method, void *senderSP, size_t argno)
+{
+	size_t nparams = method->_constMethod->_size_of_parameters;
+	void **args = (void **)senderSP;
+	
+	if (argno >= nparams)
+		return NULL;
+
+	return (address)(&args[nparams - 1 - argno]);
+}
+
 void hkHookMe(JavaVM *jvm, Method *method, void *senderSP)
 {
 	JNIEnv *jni;
@@ -24,13 +35,18 @@ void hkHookMe(JavaVM *jvm, Method *method, void *senderSP)
 	jmethodID mID = (jmethodID)&method;
 
 	std::cout << "[*] Method (stub): " << std::endl;
+	std::cout << "      _constMethod: " << method->_constMethod << std::endl;
+	std::cout << "          _size_of_parameters: " << method->_constMethod->_size_of_parameters << std::endl;
 	std::cout << "      _from_interpreted_entry: " << method->_from_interpreted_entry << std::endl;
 
-	void **args = (void **)((uintptr_t)senderSP);
-	std::cout << "      args: " << args << std::endl;
-	
-	jint *number = (jint *)(args);
-	std::cout << "      arg0 (number): " << number << std::endl;
+	jint *number = (jint *)get_method_arg(method, senderSP, 0);
+	std::cout << "      arg0 (number): " << *number << std::endl;
+
+	jstring message = *(jstring *)get_method_arg(method, senderSP, 1);
+	std::cout << "      arg1 (message): " << message << std::endl;
+
+	// const char *messageStr = jni->GetStringUTFChars(message, NULL);
+	// std::cout << "message: " << messageStr << std::endl;
 
 	jint new_number = 1337;
 	std::cout << "[*] Modifying number to: " << new_number << std::endl;
@@ -144,7 +160,7 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	}
 	std::cout << "[*] Main class: " << main << std::endl;
 
-	jmethodID hookMeID = jni->GetStaticMethodID(main, "hookMe", "(I)I");
+	jmethodID hookMeID = jni->GetStaticMethodID(main, "hookMe", "(ILjava/lang/String;)I");
 	if (!hookMeID) {
 		std::cout << "[*] Failed to find hookMe method ID" << std::endl;
 		return -1;
@@ -175,7 +191,6 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	}
 	
 	hookMe->_from_interpreted_entry = (address)hkInterpStub;
-	hookMe->_code = (address)hkInterpStub;
 
 	jclass MyClass = jni->FindClass("main/MyClass");
 	if (!MyClass) {

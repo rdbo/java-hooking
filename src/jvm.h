@@ -2,6 +2,7 @@
 #define JVM_H
 
 #include "jni.h"
+#include <stdint.h>
 
 /* NOTE: Definitions for OpenJDK 17 (HotSpot JVM) */
 
@@ -11,7 +12,7 @@ typedef unsigned int   u4;
 typedef unsigned long  u8;
 typedef void          *address;
 
-typedef void ConstMethod;
+struct ConstMethod;
 typedef void MethodData;
 typedef void MethodCounters;
 typedef void AdapterHandlerEntry;
@@ -37,5 +38,30 @@ struct Method {
 
 typedef int BasicType;
 typedef void JavaThread;
+
+typedef enum { NORMAL, OVERPASS } MethodType;
+typedef void ConstantPool;
+template <typename T>
+class Array;
+
+struct ConstMethod {
+	uint64_t _fingerprint;
+	ConstantPool *_constants;
+	Array<u1> *_stackmap_data;
+	
+	int _constMethod_size;
+	u2 _flags;
+	u1 _result_type;
+	
+	u2 _code_size;
+	u2 _name_index;
+	u2 _signature_index;
+	u2 _method_idnum;
+	
+	u2 _max_stack;
+	u2 _max_locals;
+	u2 _size_of_parameters;
+	u2 _orig_method_idnum;
+};
 
 #endif

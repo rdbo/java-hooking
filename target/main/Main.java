@@ -5,14 +5,15 @@ import main.MyClass;
 public class Main {
     public static MyClass myObject = new MyClass("User");
     
-    public static int hookMe(int myNumber) {
+    public static int hookMe(int myNumber, String myMessage) {
         System.out.println("My number is: " + myNumber);
+        System.out.println("My message is: " + myMessage);
         return myNumber * myNumber;
     }
    
     public static void doStuff() {
         while (true) {
-            int ret = hookMe(10);
+            int ret = hookMe(10, "Hello");
             System.out.println("hookMe return value: " + ret);
             System.out.println("myObject getUsername: " + myObject.getUsername());
             
