@@ -119,7 +119,7 @@ lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
 		jvm, hookfn, orig_i2c_entry
 	);
 
-	codesize = LM_AssembleEx(buf, LM_BITS, hkInterpStub, &code);
+	codesize = LM_AssembleEx(buf, LM_BITS, hookaddr, &code);
 	if (!codesize) {
 		LM_FreeMemory(hookaddr, 0x1000);
 		return LM_ADDRESS_BAD;
