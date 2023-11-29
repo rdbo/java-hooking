@@ -125,7 +125,7 @@ lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
 		return LM_ADDRESS_BAD;
 	}
 
-	if (LM_WriteMemory(hkInterpStub, code, codesize) != codesize) {
+	if (LM_WriteMemory(hookaddr, code, codesize) != codesize) {
 		LM_FreeMemory(hookaddr, 0x1000);
 		return LM_ADDRESS_BAD;
 	}
@@ -189,6 +189,20 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 
 	Method *getUsername = *(Method **)getUsernameID;
 	std::cout << "[*] getUsername method: " << getUsername << std::endl;
+
+	std::cout << "[*] _i2i_entry: " << getUsername->_i2i_entry << std::endl;
+	std::cout << "[*] _from_interpreted_entry (i2c_entry): " << getUsername->_from_interpreted_entry << std::endl;
+	std::cout << "[*] _code: " << getUsername->_code << std::endl;
+	std::cout << "[*] _from_compiled_entry (c2i_entry): " << getUsername->_from_compiled_entry << std::endl;
+	std::cout << "[*] _flags: " << getUsername->_flags << std::endl;
+	if (!getUsername->_i2i_entry || !getUsername->_from_interpreted_entry) {
+		std::cout << "[!] Method is not interpreted!" << std::endl;
+		return -1;
+	}
+
+	getUsername->_flags &= 0b11111101; // remove '_force_inline'
+	getUsername->_flags |= 0b100; // add '_dont_inline'
+	std::cout << "[*] _flags (after disabling inline): " << getUsername->_flags << std::endl;
 
 	return 0;
 }
