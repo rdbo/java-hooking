@@ -41,7 +41,7 @@ public class Main {
         if (args.length >= 1) {
             // Load library directly from Java process (good for testing with JNI_OnLoad)
             System.out.println("Library path: " + args[0]);
-            System.load(args[0]);
+            System.loadLibrary(args[0]);
         }
 
         Main.doStuff();
