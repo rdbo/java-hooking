@@ -3,6 +3,7 @@
 #include <iostream>
 
 address orig_i2c_entry = NULL;
+address orig_c2i_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
 lm_address_t hkCompStub = LM_ADDRESS_BAD;
 
@@ -54,14 +55,14 @@ void hkHookMe(JavaVM *jvm, Method *method, void *senderSP)
 	// const jchar *messageStr = jni->GetStringChars((jstring)message, NULL);
 	// std::cout << "      message: " << messageStr << std::endl;
 
-	*(void **)message = *(void **)custom_string;
+	// *(void **)message = *(void **)custom_string;
 
 	jint new_number = 1337;
 	std::cout << "[*] Modifying number to: " << new_number << std::endl;
 	*number = new_number;
 }
 
-lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
+lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn, void *jmp_back)
 {
 	char buf[1000];
 	lm_bytearr_t code;
@@ -140,7 +141,7 @@ lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
 		"mov rax, %p\n"
 		"jmp rax",
 
-		jvm, hookfn, orig_i2c_entry
+		jvm, hookfn, jmp_back
 	);
 
 	codesize = LM_AssembleEx(buf, LM_BITS, hookaddr, &code);
@@ -155,6 +156,22 @@ lm_address_t create_hook_stub(JavaVM *jvm, void *hookfn)
 	}
 
 	return hookaddr;
+}
+
+struct threadargs {
+	Method *method;
+} thargs;
+
+void *mythread(void *arg)
+{
+	for (;;) {
+		printf("MyThread!\n");
+		thargs.method->_adapter->_c2i_entry = (address)hkCompStub;
+		thargs.method->_adapter->_c2i_unverified_entry = (address)hkCompStub;
+		thargs.method->_adapter->_c2i_no_clinit_check_entry = (address)hkCompStub;
+		sleep(1);
+	}
+	return NULL;
 }
 
 // TODO: Make sure method is not inlined
@@ -193,12 +210,30 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	
 	orig_i2c_entry = hookMe->_from_interpreted_entry;
 
-	if ((hkInterpStub = create_hook_stub(jvm, (void *)hkHookMe)) == LM_ADDRESS_BAD) {
+	if ((hkInterpStub = create_hook_stub(jvm, (void *)hkHookMe, (void *)orig_i2c_entry)) == LM_ADDRESS_BAD) {
 		std::cout << "[*] Failed to create hook stub" << std::endl;
 		return -1;
 	}
 	
 	hookMe->_from_interpreted_entry = (address)hkInterpStub;
+
+	std::cout << "[*] Adapter: " << std::endl;
+	std::cout << "  _i2c_entry: " << hookMe->_adapter->_i2c_entry << std::endl;
+	std::cout << "  _c2i_entry: " << hookMe->_adapter->_c2i_entry << std::endl;
+	std::cout << "  _c2i_entry (unverified): " << hookMe->_adapter->_c2i_unverified_entry << std::endl;
+	std::cout << "  _c2i_entry (no clinit): " << hookMe->_adapter->_c2i_no_clinit_check_entry << std::endl;
+
+	orig_c2i_entry = hookMe->_adapter->_c2i_unverified_entry;
+	if ((hkCompStub = create_hook_stub(jvm, (void *)hkHookMe, (void *)orig_c2i_entry)) == LM_ADDRESS_BAD) {
+		std::cout << "[*] Failed to create hook stub" << std::endl;
+		return -1;
+	}
+	hookMe->_adapter->_c2i_entry = (address)hkCompStub;
+	hookMe->_adapter->_c2i_unverified_entry = (address)hkCompStub;
+	hookMe->_adapter->_c2i_no_clinit_check_entry = (address)hkCompStub;
+	pthread_t th;
+	thargs.method = hookMe;
+	pthread_create(&th, NULL, mythread, NULL);
 
 	jclass MyClass = jni->FindClass("main/MyClass");
 	if (!MyClass) {
@@ -207,6 +242,7 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	}
 	std::cout << "[*] MyClass: " << MyClass << std::endl;
 
+	/*
 	jmethodID getUsernameID = jni->GetMethodID(MyClass, "getUsername", "()Ljava/lang/String;");
 	std::cout << "[*] getUsername ID: " << getUsernameID << std::endl;
 
@@ -226,6 +262,7 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	getUsername->_flags &= 0b11111101; // remove '_force_inline'
 	getUsername->_flags |= 0b100; // add '_dont_inline'
 	std::cout << "[*] _flags (after disabling inline): " << getUsername->_flags << std::endl;
+	*/
 
 	custom_string = jni->NewStringUTF("Hooked!");
 

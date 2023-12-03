@@ -15,7 +15,15 @@ typedef void          *address;
 struct ConstMethod;
 typedef void MethodData;
 typedef void MethodCounters;
-typedef void AdapterHandlerEntry;
+
+struct AdapterHandlerEntry {
+	void *_fingerprint;
+	address _i2c_entry;
+	address _c2i_entry;
+	address _c2i_unverified_entry;
+	address _c2i_no_clinit_check_entry;
+};
+
 typedef void CompiledMethod;
 typedef int  AccessFlags;
 
