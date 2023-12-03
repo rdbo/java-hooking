@@ -6,6 +6,8 @@ address orig_i2c_entry = NULL;
 lm_address_t hkInterpStub = LM_ADDRESS_BAD;
 lm_address_t hkCompStub = LM_ADDRESS_BAD;
 
+jstring custom_string = NULL;
+
 address get_method_arg(Method *method, void *senderSP, size_t argno)
 {
 	size_t nparams = method->_constMethod->_size_of_parameters;
@@ -42,11 +44,17 @@ void hkHookMe(JavaVM *jvm, Method *method, void *senderSP)
 	jint *number = (jint *)get_method_arg(method, senderSP, 0);
 	std::cout << "      arg0 (number): " << *number << std::endl;
 
-	jstring message = *(jstring *)get_method_arg(method, senderSP, 1);
-	std::cout << "      arg1 (message): " << message << std::endl;
+	jstring message = (jstring)get_method_arg(method, senderSP, 1);
+	std::cout << "      arg1 (message): " << *(void **)message << std::endl;
 
-	// const char *messageStr = jni->GetStringUTFChars(message, NULL);
-	// std::cout << "message: " << messageStr << std::endl;
+	jsize len = jni->GetStringUTFLength((jstring)message);
+	std::cout << "      message size: " << len << std::endl;
+
+	//// For some reason, this crashes...
+	// const jchar *messageStr = jni->GetStringChars((jstring)message, NULL);
+	// std::cout << "      message: " << messageStr << std::endl;
+
+	*(void **)message = *(void **)custom_string;
 
 	jint new_number = 1337;
 	std::cout << "[*] Modifying number to: " << new_number << std::endl;
@@ -218,6 +226,8 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	getUsername->_flags &= 0b11111101; // remove '_force_inline'
 	getUsername->_flags |= 0b100; // add '_dont_inline'
 	std::cout << "[*] _flags (after disabling inline): " << getUsername->_flags << std::endl;
+
+	custom_string = jni->NewStringUTF("Hooked!");
 
 	return 0;
 }
