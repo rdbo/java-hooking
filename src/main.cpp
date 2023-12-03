@@ -165,10 +165,17 @@ struct threadargs {
 void *mythread(void *arg)
 {
 	for (;;) {
-		printf("MyThread!\n");
-		thargs.method->_adapter->_c2i_entry = (address)hkCompStub;
-		thargs.method->_adapter->_c2i_unverified_entry = (address)hkCompStub;
-		thargs.method->_adapter->_c2i_no_clinit_check_entry = (address)hkCompStub;
+		std::cout << "MyThread!" << std::endl;
+		std::cout << "_code: " << thargs.method->_code << std::endl;
+		if (thargs.method->_code) {
+			std::cout << "[*] Is Compiled? " << thargs.method->_code->is_compiled() << std::endl;
+			std::cout << "[*] Compile ID: " << thargs.method->_code->compile_id() << std::endl;
+			std::cout << "[*] Compile Level: " << thargs.method->_code->comp_level() << std::endl;
+			nmethod *nm = (nmethod *)thargs.method->_code;
+			std::cout << "[*] NMethod: " << nm << std::endl;
+			std::cout << "      - compile_id: " << nm->_compile_id << std::endl;
+			std::cout << "      - comp_level: " << nm->_comp_level << std::endl;
+		}
 		sleep(1);
 	}
 	return NULL;
