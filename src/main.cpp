@@ -171,6 +171,7 @@ void *mythread(void *arg)
 			std::cout << "[*] Is Compiled? " << thargs.method->_code->is_compiled() << std::endl;
 			std::cout << "[*] Compile ID: " << thargs.method->_code->compile_id() << std::endl;
 			std::cout << "[*] Compile Level: " << thargs.method->_code->comp_level() << std::endl;
+			std::cout << "[*] Entry Point: " << thargs.method->_code->entry_point() << std::endl;
 			nmethod *nm = (nmethod *)thargs.method->_code;
 			std::cout << "[*] NMethod: " << nm << std::endl;
 			std::cout << "      - compile_id: " << nm->_compile_id << std::endl;
@@ -185,6 +186,14 @@ void *mythread(void *arg)
 // TODO: Give support for compiled methods
 int dl_main(JavaVM *jvm, JNIEnv *jni)
 {
+	lm_module_t libjvm;
+
+	LM_FindModule((lm_string_t)"libjvm.so", &libjvm);
+	int *_should_compile_new_jobs = (int *)(libjvm.base + 0x11172a8);
+	std::cout << "[*] ptr _should_compile_new_jobs: " << _should_compile_new_jobs << std::endl;
+	std::cout << "[*] _should_compile_new_jobs: " << *_should_compile_new_jobs << std::endl;
+	*_should_compile_new_jobs = 2;
+	
 	jclass main = jni->FindClass("main/Main");
 	if (!main) {
 		std::cout << "[!] Failed to find main class" << std::endl;
@@ -238,9 +247,10 @@ int dl_main(JavaVM *jvm, JNIEnv *jni)
 	hookMe->_adapter->_c2i_entry = (address)hkCompStub;
 	hookMe->_adapter->_c2i_unverified_entry = (address)hkCompStub;
 	hookMe->_adapter->_c2i_no_clinit_check_entry = (address)hkCompStub;
-	pthread_t th;
-	thargs.method = hookMe;
-	pthread_create(&th, NULL, mythread, NULL);
+	hookMe->_from_compiled_entry = (address)hkCompStub;
+	// pthread_t th;
+	// thargs.method = hookMe;
+	// pthread_create(&th, NULL, mythread, NULL);
 
 	jclass MyClass = jni->FindClass("main/MyClass");
 	if (!MyClass) {

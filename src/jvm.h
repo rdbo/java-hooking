@@ -150,15 +150,21 @@ struct CodeBlob {
 
 struct CompiledMethod : CodeBlob {
 	MarkForDeoptimizationStatus _mark_for_deoptimization_status;
+	
 	unsigned int _has_unsafe_access;
 	unsigned int _has_method_handle_invokes;
 	unsigned int _has_wide_vector;
+	
 	Method *_method;
 	address _scopes_data_begin;
+
 	address _deopt_handler_begin;
+
 	address _deopt_mh_handler_begin;
+
 	PcDescContainer _pc_desc_container;
 	ExceptionCache *_exception_cache;
+
 	void *_gc_data;
 
 	// define vtable
@@ -178,8 +184,19 @@ struct CompiledMethod : CodeBlob {
 	};
 
 	virtual bool is_in_use();
-	virtual bool comp_level();
-	virtual bool compile_id();
+	virtual int comp_level();
+	virtual int compile_id();
+
+	virtual address verified_entry_point() const = 0;
+  virtual void log_identity(void* log) const = 0;
+  virtual void log_state_change() const = 0;
+  virtual bool make_not_used() = 0;
+  virtual bool make_not_entrant() = 0;
+  virtual bool make_entrant() = 0;
+  virtual address entry_point() const = 0;
+  virtual bool make_zombie() = 0;
+  virtual bool is_osr_method() const = 0;
+  virtual int osr_entry_bci() const = 0;
 
 	/* ... */
 };
